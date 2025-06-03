@@ -1,225 +1,88 @@
-from datetime import datetime, date
-from typing import Optional
-
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import HTTPException
 from pydantic import BaseModel, Field
-from starlette.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+from src.escola_api.api.v1 import curso_controller, aluno_controller
+from src.escola_api.app import app, router
 
-origins = [
-    "http://localhost:4200",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],  # POST, GET, PUT, DELETE, PATCH, OPTIONS, HEAD
-    allow_headers=["*"]
-)
+app.include_router(curso_controller.router)
+app.include_router(aluno_controller.router)
 
 
-@app.get("/")
-def index():
-    return {"mensagem": "Olá mundo"}
-
-
-@app.get("/calculadora")
-def calculadora(numero1: int, numero2: int):
-    soma = numero1 + numero2
-    return {"soma": soma}
-
-
-# http://127.0.0.1:8000/processar-cliente?nome=Pedro&sobrenome=Pascal&idade=27
-@app.get("/processar-cliente")
-def processar_dados_cliente(nome: str, idade: int, sobrenome: str):
-    # nome_completo => snake_case
-    # NomeCompleto => PascalCase
-    # nomeCompleto => camelCase
-    # nome-completo => kebab-case
-    nome_completo = nome + " " + sobrenome
-    ano_nascimento = datetime.now().year - idade  # from datetime import datetime
-
-    if ano_nascimento >= 1990 and ano_nascimento < 2000:
-        decada = "decada de 90"
-    elif ano_nascimento >= 1980 and ano_nascimento < 1990:
-        decada = "decada de 80"
-    elif ano_nascimento >= 1970 and ano_nascimento < 1980:
-        decada = "decada de 70"
-    else:
-        decada = "decada abaixo de 70 ou acima de 90"
-
-    return {
-        "nome_completo": nome_completo,
-        "ano_nascimento": ano_nascimento,
-        "decada": decada,
-    }
-
-
-# class CursoTradicional:
-#     def __init__(self, id: int, nome: str, sigla: str):
-#         self.id = id
-#         self.nome = nome
-#         self.sigla = sigla
-# from dataclasses import dataclass, field
-class Curso(BaseModel):
-    id: int = Field()
-    nome: str = Field()
-    sigla: Optional[str] = Field(default=None)
-
-
-class CursoCadastro(BaseModel):
-    nome: str = Field()
-    sigla: Optional[str] = Field(default=None)
-
-
-class CursoEditar(BaseModel):
-    nome: str = Field()
-    sigla: Optional[str] = Field(default=None)
-
-
-cursos = [
-    # instanciando um objeto da classe Curso
-    Curso(id=1, nome="Python Web", sigla="PY1"),
-    Curso(id=2, nome="Git e GitHub", sigla="GT")
-]
-
-
-# localhost:8000/docs
-@app.get("/api/cursos")
-def listar_todos_cursos():
-    return cursos
-
-
-@app.get("/api/cursos/{id}")
-def obter_por_id_curso(id: int):
-    for curso in cursos:
-        if curso.id == id:
-            return curso
-
-    # Lançando uma exceção com o status code de 404(não encontrado)
-    raise HTTPException(status_code=404, detail=f"Curso não encontrado com id: {id}")
-
-
-# CRUD
-# C => create   => Método post
-# R => read     => Métod get
-# U => update   => Método put
-# D => delete   => Método delete
-
-@app.post("/api/cursos")
-def cadastrar_curso(form: CursoCadastro):
-    ultimo_id = max([curso.id for curso in cursos], default=0)
-
-    # instanciar um objeto da classe Curso
-    curso = Curso(id=ultimo_id + 1, nome=form.nome, sigla=form.sigla)
-
-    cursos.append(curso)
-
-    return curso
-
-
-@app.delete("/api/cursos/{id}", status_code=204)
-def apagar_curso(id: int):
-    for curso in cursos:
-        if curso.id == id:
-            cursos.remove(curso)
-            return
-    raise HTTPException(status_code=404, detail=f"Curso não encontrado com id: {id}")
-
-
-@app.put("/api/cursos/{id}", status_code=200)
-def editar_curso(id: int, form: CursoEditar):
-    for curso in cursos:
-        if curso.id == id:
-            curso.nome = form.nome
-            curso.sigla = form.sigla
-            return curso
-    raise HTTPException(status_code=404, detail=f"Curso não encontrado com id: {id}")
+# @router.get("/")
+# def index():
+#     return {"mensagem": "Olá mundo"}
+#
+#
+# @router.get("/calculadora")
+# def calculadora(numero1: int, numero2: int):
+#     soma = numero1 + numero2
+#     return {"soma": soma}
+#
+#
+# # http://127.0.0.1:8000/processar-cliente?nome=Pedro&sobrenome=Pascal&idade=27
+# @router.get("/processar-cliente")
+# def processar_dados_cliente(nome: str, idade: int, sobrenome: str):
+#     # nome_completo => snake_case
+#     # NomeCompleto => PascalCase
+#     # nomeCompleto => camelCase
+#     # nome-completo => kebab-case
+#     nome_completo = nome + " " + sobrenome
+#     ano_nascimento = datetime.now().year - idade  # from datetime import datetime
+#
+#     if ano_nascimento >= 1990 and ano_nascimento < 2000:
+#         decada = "decada de 90"
+#     elif ano_nascimento >= 1980 and ano_nascimento < 1990:
+#         decada = "decada de 80"
+#     elif ano_nascimento >= 1970 and ano_nascimento < 1980:
+#         decada = "decada de 70"
+#     else:
+#         decada = "decada abaixo de 70 ou acima de 90"
+#
+#     return {
+#         "nome_completo": nome_completo,
+#         "ano_nascimento": ano_nascimento,
+#         "decada": decada,
+#     }
 
 
 # poetry add pydantic
-class Aluno(BaseModel):
+
+
+class Formacao(BaseModel):
     id: int = Field()
     nome: str = Field()
-    sobrenome: str = Field()
-    cpf: str = Field()
-    data_nascimento: datetime = Field(alias="dataNascimento")
+    descricao: str = Field()
+    duracao: int = Field()
 
 
-class AlunoCadastro(BaseModel):
+class FormacaoCadastro(BaseModel):
     nome: str = Field()
-    sobrenome: str = Field()
-    cpf: str = Field()
-    data_nascimento: datetime = Field(alias="dataNascimento")
+    descricao: str = Field()
+    duracao: int = Field()
 
 
-class AlunoEditar(BaseModel):
-    nome: str = Field()
-    sobrenome: str = Field()
-    cpf: str = Field()
-    data_nascimento: datetime = Field(alias="dataNascimento")
+class FormacaoEditar(BaseModel):
+    descricao: str = Field()
 
 
-alunos = [
-    # instanciando um objeto da Class Aluno
-    Aluno(id=1, nome="João", sobrenome="Diniz", cpf="062.950.959-55", dataNascimento=date(1990, 5, 25))
+formacoes = [
+    Formacao(id=1, nome="SuperDev", descricao="Curso de Prog.", duracao=1)
 ]
 
 
-@app.get("/api/alunos")
-def listar_todos_alunos():
-    return alunos
+@router.get("/api/formacoes")
+def listar_todos_formacao():
+    return formacoes
 
 
-@app.get("/api/alunos/{id}")
-def obter_por_id_alunos(id: int):
-    for aluno in alunos:
-        if aluno.id == id:
-            return aluno
+@router.get("/api/formacoes/{id}")
+def obter_por_id_formacao(id: int):
+    for formacao in formacoes:
+        if formacao.id == id:
+            return formacao
 
-    # Lançando uma exceção com o status code de 404(não encontrado)
-    raise HTTPException(status_code=404, detail=f"Aluno não encontrado com id: {id}")
-
-
-@app.post("/api/alunos")
-def cadastrar_aluno(form: AlunoCadastro):
-    ultimo_id = max([aluno.id for aluno in alunos], default=0)
-
-    # instanciar um objeto da classe Aluno
-    aluno = Aluno(
-        id=ultimo_id + 1,
-        nome=form.nome,
-        sobrenome=form.sobrenome,
-        cpf=form.cpf,
-        dataNascimento=form.data_nascimento)
-
-    alunos.append(aluno)
-
-    return aluno
-
-
-@app.delete("/api/alunos/{id}", status_code=204)
-def apagar_aluno(id: int):
-    for aluno in alunos:
-        if aluno.id == id:
-            alunos.remove(aluno)
-            return
-    raise HTTPException(status_code=404, detail=f"Aluno não encontrado com id: {id}")
-
-
-@app.put("/api/alunos/{id}")
-def editar_aluno(id: int, form: AlunoEditar):
-    for aluno in alunos:
-        if aluno.id == id:
-            aluno.nome = form.nome
-            aluno.sobrenome = form.sobrenome
-            aluno.cpf = form.cpf
-            aluno.data_nascimento = form.data_nascimento
-            return aluno
-    raise HTTPException(status_code=404, detail=f"Aluno não encontrado com id: {id}")
+    raise HTTPException(status_code=404, detail=f"Formação não encontrado com id: {id}")
 
 
 if __name__ == "__main__":
