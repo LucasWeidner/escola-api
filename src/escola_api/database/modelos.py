@@ -1,0 +1,11 @@
+from sqlalchemy import String, Integer, Column
+
+from src.escola_api.database.banco_dados import Base
+
+
+class Curso(Base):
+    __tablename__ = "cursos"
+
+    id = Column(Integer, primary_key=True)
+    nome = Column(String(50), nullable=False)
+    sigla = Column(String(3), nullable=False)
