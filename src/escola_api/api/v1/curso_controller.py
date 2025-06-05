@@ -1,6 +1,7 @@
 from fastapi import HTTPException, Depends
 from fastapi.params import Depends
 from sqlalchemy.orm import Session
+from virtualenv.seed.seeder import Seeder
 
 from src.escola_api.database.modelos import CursoEntidade
 from src.escola_api.schemas.curso_schemas import Curso, CursoCadastro, CursoEditar
@@ -30,11 +31,10 @@ def listar_todos_cursos(db: Session = Depends(get_db)):
 
 
 @router.get("/api/cursos/{id}")
-def obter_por_id_curso(id: int):
-    for curso in cursos:
-        if curso.id == id:
-            return curso
-
+def obter_por_id_curso(id: int, db: Session = Depends(get_db)):
+    curso = db.query(CursoEntidade).filter(CursoEntidade.id ==id).first()
+    if curso:
+        return curso
     # Lançando uma exceção com o status code de 404(não encontrado)
     raise HTTPException(status_code=404, detail=f"Curso não encontrado com id: {id}")
 
@@ -46,31 +46,36 @@ def obter_por_id_curso(id: int):
 # D => delete   => Método delete
 
 @router.post("/api/cursos")
-def cadastrar_curso(form: CursoCadastro):
-    ultimo_id = max([curso.id for curso in cursos], default=0)
+def cadastrar_curso(form: CursoCadastro, db: Session = Depends(get_db)):
 
     # instanciar um objeto da classe Curso
-    curso = Curso(id=ultimo_id + 1, nome=form.nome, sigla=form.sigla)
+    curso = CursoEntidade(nome=form.nome, sigla=form.sigla)
+    db.add(curso) # INSERT
+    db.commit() # Efetivando o registro na tabela
+    db.refresh(curso) # Preenchendo o id que foi gerado no banco de dados
 
-    cursos.append(curso)
 
     return curso
 
 
 @router.delete("/api/cursos/{id}", status_code=204)
-def apagar_curso(id: int):
-    for curso in cursos:
-        if curso.id == id:
-            cursos.remove(curso)
-            return
+def apagar_curso(id: int, db: Session= Depends(get_db)):
+    curso = db.query(CursoEntidade).filter(CursoEntidade.id == id).first()
+    if curso:
+        db.delete(curso)
+        db.commit()
+        return
     raise HTTPException(status_code=404, detail=f"Curso não encontrado com id: {id}")
 
 
 @router.put("/api/cursos/{id}", status_code=200)
-def editar_curso(id: int, form: CursoEditar):
-    for curso in cursos:
-        if curso.id == id:
-            curso.nome = form.nome
-            curso.sigla = form.sigla
-            return curso
+def editar_curso(id: int, form: CursoEditar, db: Session = Depends(get_db)):
+    curso = db.query(CursoEntidade).filter(CursoEntidade.id == id).first()
+
+    if curso:
+       curso.nome = form.nome
+       curso.sigla = form.sigla
+       db.commit()
+       db.refresh(curso)
+       return curso
     raise HTTPException(status_code=404, detail=f"Curso não encontrado com id: {id}")
